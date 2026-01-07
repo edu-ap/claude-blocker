@@ -32,6 +32,8 @@ npx claude-blocker --setup
 
 This installs the Claude Code hooks and starts the server. The hooks are configured in `~/.claude/settings.json`.
 
+> **Note:** If Claude Code is already running, you'll need to restart it for the hooks to take effect. Claude Code loads hooks at startup.
+
 ### 2. Install the Chrome extension
 
 - Download from [Chrome Web Store](#) *(coming soon)*
