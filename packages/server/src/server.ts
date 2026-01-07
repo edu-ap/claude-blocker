@@ -98,6 +98,9 @@ export function startServer(port: number = DEFAULT_PORT): void {
   });
 
   server.listen(port, () => {
+    const isCodespace = process.env.CODESPACES === "true";
+    const codespaceName = process.env.CODESPACE_NAME;
+
     console.log(`
 ┌─────────────────────────────────────┐
 │                                     │
@@ -110,6 +113,26 @@ export function startServer(port: number = DEFAULT_PORT): void {
 │                                     │
 └─────────────────────────────────────┘
 `);
+
+    // Show Codespace-specific instructions
+    if (isCodespace && codespaceName) {
+      const forwardedUrl = `wss://${codespaceName}-${port}.app.github.dev/ws`;
+      console.log(`
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│   🌐 GitHub Codespace Detected                              │
+│                                                             │
+│   To connect from your local Chrome extension:              │
+│                                                             │
+│   1. Make sure port ${port} is forwarded (check Ports tab)     │
+│   2. Set port visibility to "Public"                        │
+│   3. Copy this URL to extension settings:                   │
+│                                                             │
+│   ${forwardedUrl}
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+`);
+    }
   });
 
   // Graceful shutdown - use once to prevent stacking handlers

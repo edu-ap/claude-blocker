@@ -461,6 +461,79 @@ section {
   color: var(--text-dim);
 }
 
+/* Server Section */
+.server-section {
+  background: var(--bg-base);
+}
+
+.server-form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.server-input-wrapper {
+  flex: 1;
+}
+
+.server-input-wrapper input {
+  padding-right: 18px;
+}
+
+.server-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.save-btn, .reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.save-btn:hover {
+  background: linear-gradient(135deg, var(--accent-green), #16a34a);
+  border-color: var(--accent-green);
+  color: #fff;
+}
+
+.reset-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.save-btn svg, .reset-btn svg {
+  flex-shrink: 0;
+}
+
+.server-status {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.server-status.connected {
+  color: var(--accent-green);
+}
+
+.server-status.disconnected {
+  color: var(--accent-red);
+}
+
+.server-status.error {
+  color: var(--accent-red);
+}
+
 /* Footer */
 footer {
   margin-top: 48px;

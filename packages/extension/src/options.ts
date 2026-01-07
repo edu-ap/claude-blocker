@@ -1,6 +1,7 @@
 export {};
 
 const DEFAULT_DOMAINS = ["x.com", "youtube.com"];
+const DEFAULT_SERVER_URL = "ws://localhost:8765/ws";
 
 interface ExtensionState {
   blocked: boolean;
@@ -31,8 +32,15 @@ const bypassBtn = document.getElementById("bypass-btn") as HTMLButtonElement;
 const bypassText = document.getElementById("bypass-text") as HTMLElement;
 const bypassStatus = document.getElementById("bypass-status") as HTMLElement;
 
+// Server URL elements
+const serverUrlInput = document.getElementById("server-url") as HTMLInputElement;
+const saveServerBtn = document.getElementById("save-server-btn") as HTMLButtonElement;
+const resetServerBtn = document.getElementById("reset-server-btn") as HTMLButtonElement;
+const serverStatus = document.getElementById("server-status") as HTMLElement;
+
 let bypassCountdown: ReturnType<typeof setInterval> | null = null;
 let currentDomains: string[] = [];
+let currentServerUrl: string = DEFAULT_SERVER_URL;
 
 // Load domains from storage
 async function loadDomains(): Promise<string[]> {
@@ -162,6 +170,9 @@ function updateUI(state: ExtensionState): void {
     statusText.textContent = "Connected";
   }
 
+  // Update server status in settings
+  updateServerStatus(state.serverConnected);
+
   // Stats
   sessionsEl.textContent = String(state.sessions);
   workingEl.textContent = String(state.working);
@@ -256,10 +267,101 @@ chrome.runtime.onMessage.addListener((message) => {
   }
 });
 
+// Server URL functions
+async function loadServerUrl(): Promise<string> {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(["serverUrl"], (result) => {
+      if (result.serverUrl) {
+        resolve(result.serverUrl);
+      } else {
+        resolve(DEFAULT_SERVER_URL);
+      }
+    });
+  });
+}
+
+async function saveServerUrl(url: string): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.sync.set({ serverUrl: url }, () => {
+      resolve();
+    });
+  });
+}
+
+function isValidWebSocketUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "ws:" || parsed.protocol === "wss:";
+  } catch {
+    return false;
+  }
+}
+
+function updateServerStatus(connected: boolean): void {
+  if (serverStatus) {
+    if (connected) {
+      serverStatus.textContent = "Connected";
+      serverStatus.className = "server-status connected";
+    } else {
+      serverStatus.textContent = "Disconnected";
+      serverStatus.className = "server-status disconnected";
+    }
+  }
+}
+
+// Server URL event listeners
+if (saveServerBtn) {
+  saveServerBtn.addEventListener("click", async () => {
+    const url = serverUrlInput.value.trim();
+
+    if (!url) {
+      serverUrlInput.classList.add("error");
+      setTimeout(() => serverUrlInput.classList.remove("error"), 400);
+      return;
+    }
+
+    if (!isValidWebSocketUrl(url)) {
+      serverUrlInput.classList.add("error");
+      if (serverStatus) {
+        serverStatus.textContent = "Invalid URL (must start with ws:// or wss://)";
+        serverStatus.className = "server-status error";
+      }
+      setTimeout(() => serverUrlInput.classList.remove("error"), 400);
+      return;
+    }
+
+    await saveServerUrl(url);
+    currentServerUrl = url;
+    if (serverStatus) {
+      serverStatus.textContent = "Saved! Reconnecting...";
+      serverStatus.className = "server-status";
+    }
+  });
+}
+
+if (resetServerBtn) {
+  resetServerBtn.addEventListener("click", async () => {
+    await saveServerUrl(DEFAULT_SERVER_URL);
+    currentServerUrl = DEFAULT_SERVER_URL;
+    serverUrlInput.value = DEFAULT_SERVER_URL;
+    if (serverStatus) {
+      serverStatus.textContent = "Reset to default";
+      serverStatus.className = "server-status";
+    }
+  });
+}
+
 // Initialize
 async function init(): Promise<void> {
   currentDomains = await loadDomains();
   renderDomains();
+
+  // Load server URL
+  currentServerUrl = await loadServerUrl();
+  if (serverUrlInput) {
+    serverUrlInput.value = currentServerUrl;
+  }
+
   refreshState();
 }
 

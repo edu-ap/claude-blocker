@@ -1,9 +1,12 @@
 export {};
 
-const WS_URL = "ws://localhost:8765/ws";
+const DEFAULT_WS_URL = "ws://localhost:8765/ws";
 const KEEPALIVE_INTERVAL = 20_000;
 const RECONNECT_BASE_DELAY = 1_000;
 const RECONNECT_MAX_DELAY = 30_000;
+
+// Configurable WebSocket URL (loaded from storage)
+let wsUrl = DEFAULT_WS_URL;
 
 // The actual state - service worker is single source of truth
 interface State {
@@ -27,10 +30,34 @@ let keepaliveInterval: ReturnType<typeof setInterval> | null = null;
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 let retryCount = 0;
 
-// Load bypass from storage on startup
-chrome.storage.sync.get(["bypassUntil"], (result) => {
-  if (result.bypassUntil && result.bypassUntil > Date.now()) {
-    state.bypassUntil = result.bypassUntil;
+// Load config from storage
+async function loadConfig(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(["serverUrl", "bypassUntil"], (result) => {
+      if (result.serverUrl) {
+        wsUrl = result.serverUrl;
+        console.log("[Claude Blocker] Using custom server URL:", wsUrl);
+      }
+      if (result.bypassUntil && result.bypassUntil > Date.now()) {
+        state.bypassUntil = result.bypassUntil;
+      }
+      resolve();
+    });
+  });
+}
+
+// Listen for config changes (reconnect if URL changes)
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === "sync" && changes.serverUrl) {
+    const newUrl = changes.serverUrl.newValue || DEFAULT_WS_URL;
+    if (newUrl !== wsUrl) {
+      console.log("[Claude Blocker] Server URL changed, reconnecting...");
+      wsUrl = newUrl;
+      // Close existing connection to trigger reconnect
+      if (websocket) {
+        websocket.close();
+      }
+    }
   }
 });
 
@@ -70,7 +97,7 @@ function connect() {
   if (websocket?.readyState === WebSocket.CONNECTING) return;
 
   try {
-    websocket = new WebSocket(WS_URL);
+    websocket = new WebSocket(wsUrl);
 
     websocket.onopen = () => {
       console.log("[Claude Blocker] Connected");
@@ -178,5 +205,7 @@ setInterval(() => {
   }
 }, 5000);
 
-// Start
-connect();
+// Start - load config first, then connect
+loadConfig().then(() => {
+  connect();
+});
