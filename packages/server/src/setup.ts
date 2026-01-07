@@ -8,7 +8,7 @@ interface ClaudeSettings {
   [key: string]: unknown;
 }
 
-const HOOK_COMMAND = `curl -s -X POST http://localhost:${DEFAULT_PORT}/hook -H 'Content-Type: application/json' -d "$(cat)" > /dev/null 2>&1 &`;
+const HOOK_COMMAND = `curl -s -X POST http://localhost:${DEFAULT_PORT}/hook -H 'Content-Type: application/json' -d @- > /dev/null 2>&1 &`;
 
 const HOOKS_CONFIG = {
   UserPromptSubmit: [
