@@ -70,7 +70,7 @@ async function main(): Promise<void> {
   }
 
   // Check if hooks are configured, prompt for setup if not
-  if (!areHooksConfigured()) {
+  if (!args.includes("--no-setup") && !areHooksConfigured()) {
     console.log("Claude Blocker hooks are not configured yet.\n");
     const answer = await prompt("Would you like to set them up now? (Y/n) ");
     const normalized = answer.trim().toLowerCase();

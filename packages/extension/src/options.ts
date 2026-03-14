@@ -351,6 +351,20 @@ if (resetServerBtn) {
   });
 }
 
+// Notifications toggle
+const notificationsToggle = document.getElementById("notifications-toggle") as HTMLInputElement | null;
+
+if (notificationsToggle) {
+  chrome.storage.sync.get(["notificationsEnabled"], (result) => {
+    notificationsToggle.checked = result.notificationsEnabled !== false;
+  });
+
+  notificationsToggle.addEventListener("change", () => {
+    chrome.storage.sync.set({ notificationsEnabled: notificationsToggle.checked });
+    chrome.runtime.sendMessage({ type: "SET_NOTIFICATIONS", enabled: notificationsToggle.checked });
+  });
+}
+
 // Initialize
 async function init(): Promise<void> {
   currentDomains = await loadDomains();
