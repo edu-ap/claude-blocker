@@ -108,9 +108,9 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 // Compute derived state
 function getPublicState() {
   const bypassActive = state.bypassUntil !== null && state.bypassUntil > Date.now();
-  // Don't block if waiting for input - only block when truly idle
-  const isIdle = state.working === 0 && state.waitingForInput === 0;
-  const shouldBlock = !bypassActive && (isIdle || !state.serverConnected);
+  // Block unless ALL sessions are actively working (none idle, none waiting)
+  const allWorking = state.serverConnected && state.sessions > 0 && state.working === state.sessions;
+  const shouldBlock = !bypassActive && !allWorking;
 
   return {
     serverConnected: state.serverConnected,
