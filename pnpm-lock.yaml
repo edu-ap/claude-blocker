@@ -32,6 +32,9 @@ importers:
 
   packages/server:
     dependencies:
+      '@claude-blocker/shared':
+        specifier: workspace:*
+        version: link:../shared
       ws:
         specifier: ^8.18.0
         version: 8.18.3
@@ -52,7 +55,14 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  packages/shared: {}
+  packages/shared:
+    devDependencies:
+      tsup:
+        specifier: ^8.3.5
+        version: 8.5.1(tsx@4.21.0)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
 
 packages:
 

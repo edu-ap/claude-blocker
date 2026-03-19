@@ -89,6 +89,59 @@
           </ul>
         </section>
 
+        <!-- Server Configuration Section -->
+        <section class="server-section">
+          <div class="section-header">
+            <div class="section-title">
+              <h2>Server Connection</h2>
+              <p class="section-desc">Configure the Claude Blocker server URL (for Codespaces or remote servers)</p>
+            </div>
+          </div>
+
+          <div class="server-form">
+            <div class="input-wrapper server-input-wrapper">
+              <input
+                type="text"
+                id="server-url"
+                aria-label="Claude Blocker server WebSocket URL"
+                placeholder="ws://localhost:8765/ws"
+                spellcheck="false"
+                autocomplete="off"
+              />
+            </div>
+            <div class="server-buttons">
+              <button type="button" class="save-btn" id="save-server-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20,6 9,17 4,12"/>
+                </svg>
+                <span>Save</span>
+              </button>
+              <button type="button" class="reset-btn" id="reset-server-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                  <path d="M3 3v5h5"/>
+                </svg>
+                <span>Reset</span>
+              </button>
+            </div>
+          </div>
+          <p class="server-status" id="server-status">—</p>
+        </section>
+
+        <!-- Notifications Section -->
+        <section class="server-section">
+          <div class="section-header">
+            <div class="section-title">
+              <h2>Notifications</h2>
+              <p class="section-desc">Get a Chrome notification when Claude finishes and needs your input</p>
+            </div>
+          </div>
+          <label style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(255,255,255,0.03);border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="notifications-toggle" checked style="width:18px;height:18px;accent-color:#FFD700;cursor:pointer;" />
+            <span style="font-size:14px;color:rgba(255,255,255,0.8);">Enable input-needed notifications</span>
+          </label>
+        </section>
+
         <!-- Bypass Section -->
         <section class="bypass-section">
           <div class="section-header">

@@ -1,9 +1,12 @@
 export {};
 
-const WS_URL = "ws://localhost:8765/ws";
+const DEFAULT_WS_URL = "ws://localhost:8765/ws";
 const KEEPALIVE_INTERVAL = 20_000;
 const RECONNECT_BASE_DELAY = 1_000;
 const RECONNECT_MAX_DELAY = 30_000;
+
+// Configurable WebSocket URL (loaded from storage)
+let wsUrl = DEFAULT_WS_URL;
 
 // The actual state - service worker is single source of truth
 interface State {
@@ -27,19 +30,93 @@ let keepaliveInterval: ReturnType<typeof setInterval> | null = null;
 let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 let retryCount = 0;
 
-// Load bypass from storage on startup
-chrome.storage.sync.get(["bypassUntil"], (result) => {
-  if (result.bypassUntil && result.bypassUntil > Date.now()) {
-    state.bypassUntil = result.bypassUntil;
+// Notification state
+let notificationsEnabled = true;
+let lastNotifyTime = 0;
+const NOTIFY_COOLDOWN_MS = 30_000; // 30 seconds between notifications
+let previousWorking = 0;
+
+// Notify when any Claude session stops working
+function maybeNotifyInputNeeded(): void {
+  if (!notificationsEnabled) return;
+  if (state.sessions === 0) return;
+
+  const now = Date.now();
+  if (now - lastNotifyTime < NOTIFY_COOLDOWN_MS) return;
+
+  // Notify when working count decreases (a session finished)
+  if (state.working < previousWorking) {
+    lastNotifyTime = now;
+    const title = state.waitingForInput > 0
+      ? "Claude is waiting for your answer"
+      : "Claude needs your input";
+    // Clear first to ensure Chrome shows a fresh notification
+    chrome.notifications.clear("claude-input-needed", () => {
+      chrome.notifications.create("claude-input-needed", {
+        type: "basic",
+        iconUrl: "icon-128.png",
+        title,
+        message: "Claude Code has finished and is waiting for you.",
+        priority: 2,
+        requireInteraction: true,
+      });
+    });
+  }
+}
+
+// Clear notification when user submits input (working resumes)
+function maybeClearNotification(): void {
+  if (state.working > previousWorking) {
+    chrome.notifications.clear("claude-input-needed");
+  }
+}
+
+// Load config from storage
+async function loadConfig(): Promise<void> {
+  return new Promise((resolve) => {
+    chrome.storage.sync.get(["serverUrl", "bypassUntil", "notificationsEnabled"], (result) => {
+      if (result.serverUrl) {
+        wsUrl = result.serverUrl;
+        console.log("[Claude Blocker] Using custom server URL:", wsUrl);
+      }
+      if (result.bypassUntil && result.bypassUntil > Date.now()) {
+        state.bypassUntil = result.bypassUntil;
+      }
+      if (result.notificationsEnabled !== undefined) {
+        notificationsEnabled = result.notificationsEnabled;
+      }
+      resolve();
+    });
+  });
+}
+
+// Listen for config changes (reconnect if URL changes, toggle notifications)
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "sync") return;
+
+  if (changes.serverUrl) {
+    const newUrl = changes.serverUrl.newValue || DEFAULT_WS_URL;
+    if (newUrl !== wsUrl) {
+      console.log("[Claude Blocker] Server URL changed, reconnecting...");
+      wsUrl = newUrl;
+      // Close existing connection to trigger reconnect
+      if (websocket) {
+        websocket.close();
+      }
+    }
+  }
+
+  if (changes.notificationsEnabled) {
+    notificationsEnabled = changes.notificationsEnabled.newValue ?? true;
   }
 });
 
 // Compute derived state
 function getPublicState() {
   const bypassActive = state.bypassUntil !== null && state.bypassUntil > Date.now();
-  // Don't block if waiting for input - only block when truly idle
-  const isIdle = state.working === 0 && state.waitingForInput === 0;
-  const shouldBlock = !bypassActive && (isIdle || !state.serverConnected);
+  // Block unless ALL sessions are actively working (none idle, none waiting)
+  const allWorking = state.serverConnected && state.sessions > 0 && state.working === state.sessions;
+  const shouldBlock = !bypassActive && !allWorking;
 
   return {
     serverConnected: state.serverConnected,
@@ -70,7 +147,7 @@ function connect() {
   if (websocket?.readyState === WebSocket.CONNECTING) return;
 
   try {
-    websocket = new WebSocket(WS_URL);
+    websocket = new WebSocket(wsUrl);
 
     websocket.onopen = () => {
       console.log("[Claude Blocker] Connected");
@@ -84,9 +161,15 @@ function connect() {
       try {
         const msg = JSON.parse(event.data);
         if (msg.type === "state") {
+          previousWorking = state.working;
           state.sessions = msg.sessions;
           state.working = msg.working;
           state.waitingForInput = msg.waitingForInput ?? 0;
+
+          maybeClearNotification();
+          maybeNotifyInputNeeded();
+          previousWorking = state.working;
+
           broadcast();
         }
       } catch {}
@@ -166,7 +249,33 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "SET_NOTIFICATIONS") {
+    notificationsEnabled = message.enabled;
+    chrome.storage.sync.set({ notificationsEnabled: message.enabled });
+    sendResponse({ success: true });
+    return true;
+  }
+
   return false;
+});
+
+// Click on notification focuses the tab where Claude is running
+chrome.notifications.onClicked.addListener((notificationId) => {
+  if (notificationId === "claude-input-needed") {
+    chrome.notifications.clear(notificationId);
+    chrome.tabs.query({}, (tabs) => {
+      // Find a Codespace or terminal tab where Claude Code might be running
+      const claudeTab = tabs.find((t) =>
+        t.url?.includes(".github.dev") || t.url?.includes("github.dev/")
+      );
+      if (claudeTab?.id) {
+        chrome.tabs.update(claudeTab.id, { active: true });
+        if (claudeTab.windowId) {
+          chrome.windows.update(claudeTab.windowId, { focused: true });
+        }
+      }
+    });
+  }
 });
 
 // Check bypass expiry
@@ -178,5 +287,7 @@ setInterval(() => {
   }
 }, 5000);
 
-// Start
-connect();
+// Start - load config first, then connect
+loadConfig().then(() => {
+  connect();
+});

@@ -32,6 +32,8 @@ npx claude-blocker --setup
 
 This installs the Claude Code hooks and starts the server. The hooks are configured in `~/.claude/settings.json`.
 
+> **Note:** If Claude Code is already running, you'll need to restart it for the hooks to take effect. Claude Code loads hooks at startup.
+
 ### 2. Install the Chrome extension
 
 - Download from [Chrome Web Store](#) *(coming soon)*
@@ -73,6 +75,56 @@ npx claude-blocker --help
 - Node.js 18+
 - Chrome (or Chromium-based browser)
 - [Claude Code](https://claude.ai/claude-code)
+
+## Using with GitHub Codespaces
+
+Claude Blocker works with GitHub Codespaces! When you run Claude Code in a Codespace, the extension on your local browser can still connect to block distracting sites.
+
+### Setup
+
+1. **Start the server in your Codespace:**
+   ```bash
+   npx claude-blocker --setup
+   ```
+   The server will detect the Codespace environment and display the forwarded URL.
+
+2. **Forward the port:**
+   - Open the "Ports" tab in VS Code (or the Codespace web UI)
+   - Find port `8765` (or your custom port)
+   - Set visibility to **Public** (required for the extension to connect)
+
+3. **Configure the extension:**
+   - Click the Claude Blocker extension icon → Settings
+   - In the "Server Connection" section, paste the forwarded URL:
+     ```text
+     wss://YOUR-CODESPACE-NAME-8765.app.github.dev/ws
+     ```
+   - Click "Save"
+
+4. **Verify connection:**
+   - The extension status should show "Connected"
+   - When Claude is working in your Codespace, distractions will be blocked on your local browser
+
+### How it works
+
+```text
+┌─────────────────────┐                    ┌─────────────────────┐
+│   GitHub Codespace  │                    │   Your Local PC     │
+│                     │                    │                     │
+│  ┌───────────────┐  │     Forwarded      │  ┌───────────────┐  │
+│  │  Claude Code  │  │       Port         │  │    Chrome     │  │
+│  │   (hooks)     │──┼──►  8765  ◄────────┼──│   Extension   │  │
+│  └───────────────┘  │                    │  └───────────────┘  │
+│         │           │                    │         │           │
+│         ▼           │                    │         ▼           │
+│  ┌───────────────┐  │                    │  Blocks sites when  │
+│  │    Server     │  │                    │  Claude is idle     │
+│  │  (localhost)  │  │                    │                     │
+│  └───────────────┘  │                    │                     │
+└─────────────────────┘                    └─────────────────────┘
+```
+
+The hooks still use `localhost` inside the Codespace (container-to-container), but the extension connects via the public forwarded URL.
 
 ## Development
 
